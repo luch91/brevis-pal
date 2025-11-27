@@ -124,6 +124,78 @@ class BrevisPalDB {
         };
     }
 
+    // Insert a new proof
+    insertProof(proofData) {
+        const stmt = this.db.prepare(`
+            INSERT INTO proofs
+            (requester_id, requester_username, target_user_id, target_username,
+             proof_type, claim, result, data_hash, guild_id, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        try {
+            const info = stmt.run(
+                proofData.requesterId,
+                proofData.requesterUsername,
+                proofData.targetUserId,
+                proofData.targetUsername,
+                proofData.proofType,
+                proofData.claim,
+                proofData.result,
+                proofData.dataHash,
+                proofData.guildId,
+                proofData.timestamp
+            );
+            return info.lastInsertRowid;
+        } catch (error) {
+            console.error('Error inserting proof:', error);
+            return null;
+        }
+    }
+
+    // Get proof by ID
+    getProofById(proofId) {
+        const stmt = this.db.prepare('SELECT * FROM proofs WHERE proof_id = ?');
+        return stmt.get(proofId);
+    }
+
+    // Get all proofs by requester
+    getProofsByRequester(requesterId) {
+        const stmt = this.db.prepare('SELECT * FROM proofs WHERE requester_id = ? ORDER BY timestamp DESC');
+        return stmt.all(requesterId);
+    }
+
+    // Get total proof count
+    getTotalProofs() {
+        const stmt = this.db.prepare('SELECT COUNT(*) as count FROM proofs');
+        return stmt.get().count;
+    }
+
+    // Get user stats (extended for proofs)
+    getUserStats(userId, guildId) {
+        const messageCount = this.db.prepare('SELECT COUNT(*) as count FROM messages WHERE user_id = ? AND guild_id = ?').get(userId, guildId).count;
+        const firstMessage = this.db.prepare('SELECT MIN(timestamp) as first FROM messages WHERE user_id = ? AND guild_id = ?').get(userId, guildId).first;
+        const lastMessage = this.db.prepare('SELECT MAX(timestamp) as last FROM messages WHERE user_id = ? AND guild_id = ?').get(userId, guildId).last;
+
+        // Get most active channel
+        const mostActiveChannel = this.db.prepare(`
+            SELECT channel_name, COUNT(*) as count
+            FROM messages
+            WHERE user_id = ? AND guild_id = ?
+            GROUP BY channel_id
+            ORDER BY count DESC
+            LIMIT 1
+        `).get(userId, guildId);
+
+        return {
+            messageCount,
+            firstMessage: firstMessage ? new Date(firstMessage) : null,
+            lastMessage: lastMessage ? new Date(lastMessage) : null,
+            mostActiveChannel: mostActiveChannel?.channel_name || 'N/A',
+            mostActiveChannelCount: mostActiveChannel?.count || 0
+        };
+    }
+
     // Close database connection
     close() {
         this.db.close();

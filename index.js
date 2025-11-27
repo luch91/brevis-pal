@@ -1,6 +1,8 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Events } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Events } = require('discord.js');
 const BrevisPalDB = require('./database');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize database
 const db = new BrevisPalDB(process.env.DATABASE_PATH || './brevis-pal.db');
@@ -15,6 +17,22 @@ const client = new Client({
     ],
 });
 
+// Load slash commands
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        console.log(`✅ Loaded command: ${command.data.name}`);
+    } else {
+        console.log(`⚠️  Skipping ${file}: missing 'data' or 'execute' property`);
+    }
+}
+
 // Bot ready event
 client.once(Events.ClientReady, (readyClient) => {
     console.log('═══════════════════════════════════════════');
@@ -22,10 +40,36 @@ client.once(Events.ClientReady, (readyClient) => {
     console.log(`📝 Logged in as: ${readyClient.user.tag}`);
     console.log(`🔗 Bot ID: ${readyClient.user.id}`);
     console.log(`📊 Watching ${readyClient.guilds.cache.size} server(s)`);
+    console.log(`⚡ Loaded ${client.commands.size} slash commands`);
     console.log('═══════════════════════════════════════════');
 
     // Set bot status
     client.user.setActivity('messages for proofs', { type: 3 }); // Type 3 = "Watching"
+});
+
+// Handle slash command interactions
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+
+    if (!command) {
+        console.error(`❌ No command matching ${interaction.commandName} was found.`);
+        return;
+    }
+
+    try {
+        await command.execute(interaction, db);
+    } catch (error) {
+        console.error(`❌ Error executing command ${interaction.commandName}:`, error);
+        const errorMessage = { content: 'There was an error executing this command!', ephemeral: true };
+
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(errorMessage);
+        } else {
+            await interaction.reply(errorMessage);
+        }
+    }
 });
 
 // Message create event - collect all messages
@@ -59,7 +103,8 @@ client.on(Events.MessageCreate, async (message) => {
     // Simple ping-pong command for testing
     if (message.content.toLowerCase() === '!ping') {
         const totalMessages = db.getTotalMessages();
-        await message.reply(`🏓 Pong! I'm online and collecting data.\n📊 Total messages stored: ${totalMessages}`);
+        const totalProofs = db.getTotalProofs();
+        await message.reply(`🏓 Pong! I'm online and collecting data.\n📊 Total messages stored: ${totalMessages}\n📜 Total proofs generated: ${totalProofs}`);
     }
 
     // Simple stats command for testing
