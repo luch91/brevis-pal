@@ -32,6 +32,14 @@ An educational Discord bot that demonstrates how Brevis ZK proofs work using Dis
 - Tracks Brevis community roles and bot achievements
 - Progress tracking for locked achievements
 
+### Phase 4: Educational Layer & Polish ✅
+- Educational explanations in every proof card
+- Brevis parallels in leaderboards and achievements
+- `/learn` command with ZK proof and Brevis education
+- `/help` command with comprehensive guide
+- Enhanced error messages with educational tips
+- Discord vs Brevis comparison tables
+
 ## Commands
 
 ### Slash Commands
@@ -49,6 +57,13 @@ An educational Discord bot that demonstrates how Brevis ZK proofs work using Dis
 **Achievements:**
 - `/achievements` - View your achievements and roles
 - `/achievements @user` - View someone else's achievements
+
+**Learning:**
+- `/learn basics` - Learn about ZK proofs
+- `/learn brevis` - What is Brevis?
+- `/learn bot` - How this bot works
+- `/learn verify` - Why verification matters
+- `/help` - Complete command guide
 
 ### Legacy Commands (Testing)
 - `!ping` - Check bot status
@@ -83,12 +98,15 @@ brevis-pal/
 │   ├── prove.js           # Proof generation
 │   ├── verify.js          # Proof verification
 │   ├── leaderboard.js     # Leaderboards
-│   └── achievements.js    # Achievements & roles
+│   ├── achievements.js    # Achievements & roles
+│   ├── learn.js           # Educational content
+│   └── help.js            # Help system
 ├── utils/                 # Utility modules
 │   ├── proofs.js          # Proof generation logic
 │   ├── embeds.js          # Discord embed templates
 │   ├── keywords.js        # Keyword configuration
-│   └── achievements.js    # Achievement definitions
+│   ├── achievements.js    # Achievement definitions
+│   └── education.js       # Educational content & comparisons
 ├── index.js               # Main bot file
 ├── database.js            # Database operations
 ├── deploy-commands.js     # Command registration script

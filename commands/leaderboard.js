@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder} = require('discord.js');
 const EmbedTemplates = require('../utils/embeds');
+const { getLeaderboardEducation } = require('../utils/education');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -79,6 +80,14 @@ module.exports = {
                 });
 
                 embed.addFields({ name: 'Rankings', value: description });
+
+                // Add educational section
+                const education = getLeaderboardEducation('mostActive');
+                embed.addFields(
+                    { name: '\u200B', value: '\u200B', inline: false }, // Spacer
+                    { name: education.title, value: education.description, inline: false }
+                );
+
                 embed.setFooter({ text: `Server: ${interaction.guild.name} | Use /prove to verify counts` });
 
                 await interaction.editReply({ embeds: [embed] });
@@ -112,6 +121,14 @@ module.exports = {
                 });
 
                 embed.addFields({ name: 'Rankings', value: description });
+
+                // Add educational section
+                const keywordEducation = getLeaderboardEducation('keyword');
+                embed.addFields(
+                    { name: '\u200B', value: '\u200B', inline: false }, // Spacer
+                    { name: keywordEducation.title, value: keywordEducation.description, inline: false }
+                );
+
                 embed.setFooter({ text: `Server: ${interaction.guild.name} | Use /prove to verify` });
 
                 await interaction.editReply({ embeds: [embed] });

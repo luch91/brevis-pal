@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const EmbedTemplates = require('../utils/embeds');
 const { checkAchievements, getBrevisRoles } = require('../utils/achievements');
+const { getAchievementEducation } = require('../utils/education');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -81,6 +82,13 @@ module.exports = {
                 const moreText = locked.length > 5 ? `\n*...and ${locked.length - 5} more*` : '';
                 embed.addFields({ name: '📋 Locked Achievements', value: lockedText + moreText, inline: false });
             }
+
+            // Add educational section
+            const education = getAchievementEducation(unlocked.length > 0);
+            embed.addFields(
+                { name: '\u200B', value: '\u200B', inline: false }, // Spacer
+                { name: education.title, value: education.description, inline: false }
+            );
 
             // Add stats footer
             embed.setFooter({

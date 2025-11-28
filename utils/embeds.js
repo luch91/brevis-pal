@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const ProofGenerator = require('./proofs');
+const { getProofEducation } = require('./education');
 
 class EmbedTemplates {
     /**
@@ -11,6 +12,9 @@ class EmbedTemplates {
         const formattedId = ProofGenerator.formatProofId(proof.proof_id);
         const proofTypeName = ProofGenerator.getProofTypeName(proof.proof_type);
         const timestamp = new Date(proof.timestamp);
+
+        // Get educational content based on proof type
+        const education = getProofEducation(proof.proof_type);
 
         const embed = new EmbedBuilder()
             .setColor(0x00FF00) // Green for verified
@@ -28,8 +32,20 @@ class EmbedTemplates {
                 }), inline: true },
                 { name: '🔐 Data Hash', value: `\`${proof.data_hash}\``, inline: true },
                 { name: '📂 Type', value: proofTypeName, inline: true }
-            )
-            .setFooter({ text: `Anyone can verify: /verify ${formattedId} | Requested by ${proof.requester_username}` })
+            );
+
+        // Add educational section
+        if (education) {
+            embed.addFields(
+                { name: '\u200B', value: '\u200B', inline: false }, // Spacer
+                { name: education.title, value: education.description, inline: false }
+            );
+            if (education.whyItMatters) {
+                embed.addFields({ name: '💡 Why This Matters', value: education.whyItMatters, inline: false });
+            }
+        }
+
+        embed.setFooter({ text: `Anyone can verify: /verify ${formattedId} | Requested by ${proof.requester_username}` })
             .setTimestamp(timestamp);
 
         return embed;
@@ -86,14 +102,21 @@ class EmbedTemplates {
     /**
      * Create an error embed
      * @param {string} message - Error message
+     * @param {string} tip - Optional educational tip
      * @returns {EmbedBuilder} - Discord embed
      */
-    static createErrorEmbed(message) {
-        return new EmbedBuilder()
+    static createErrorEmbed(message, tip = null) {
+        const embed = new EmbedBuilder()
             .setColor(0xFF0000) // Red
             .setTitle('❌ Error')
             .setDescription(message)
             .setTimestamp();
+
+        if (tip) {
+            embed.addFields({ name: '💡 Tip', value: tip, inline: false });
+        }
+
+        return embed;
     }
 
     /**
