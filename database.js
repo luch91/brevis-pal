@@ -196,6 +196,127 @@ class BrevisPalDB {
         };
     }
 
+    // Count keyword occurrences for a user
+    countKeywordForUser(userId, keyword, guildId, timeframe = null) {
+        let query = 'SELECT content FROM messages WHERE user_id = ? AND guild_id = ?';
+        const params = [userId, guildId];
+
+        if (timeframe) {
+            query += ' AND timestamp >= ?';
+            params.push(timeframe);
+        }
+
+        const messages = this.db.prepare(query).all(...params);
+
+        let count = 0;
+        const lowerKeyword = keyword.toLowerCase();
+        const regex = new RegExp(`\\b${lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+
+        messages.forEach(msg => {
+            const matches = msg.content.toLowerCase().match(regex);
+            if (matches) count += matches.length;
+        });
+
+        return count;
+    }
+
+    // Get leaderboard for message count
+    getLeaderboard(guildId, limit = 10, timeframe = null) {
+        let query = `
+            SELECT user_id, username, COUNT(*) as count
+            FROM messages
+            WHERE guild_id = ?
+        `;
+        const params = [guildId];
+
+        if (timeframe) {
+            query += ' AND timestamp >= ?';
+            params.push(timeframe);
+        }
+
+        query += `
+            GROUP BY user_id
+            ORDER BY count DESC
+            LIMIT ?
+        `;
+        params.push(limit);
+
+        return this.db.prepare(query).all(...params);
+    }
+
+    // Get leaderboard for specific keyword
+    getKeywordLeaderboard(keyword, guildId, limit = 10, timeframe = null) {
+        let query = 'SELECT user_id, username, content FROM messages WHERE guild_id = ?';
+        const params = [guildId];
+
+        if (timeframe) {
+            query += ' AND timestamp >= ?';
+            params.push(timeframe);
+        }
+
+        const messages = this.db.prepare(query).all(...params);
+
+        // Count keywords per user
+        const userCounts = {};
+        const lowerKeyword = keyword.toLowerCase();
+        const regex = new RegExp(`\\b${lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+
+        messages.forEach(msg => {
+            const matches = msg.content.toLowerCase().match(regex);
+            if (matches) {
+                if (!userCounts[msg.user_id]) {
+                    userCounts[msg.user_id] = {
+                        user_id: msg.user_id,
+                        username: msg.username,
+                        count: 0
+                    };
+                }
+                userCounts[msg.user_id].count += matches.length;
+            }
+        });
+
+        // Convert to array and sort
+        return Object.values(userCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, limit);
+    }
+
+    // Get days since first message (for veteran achievement)
+    getDaysSinceFirstMessage(userId, guildId) {
+        const first = this.db.prepare('SELECT MIN(timestamp) as first FROM messages WHERE user_id = ? AND guild_id = ?').get(userId, guildId).first;
+        if (!first) return 0;
+
+        const daysDiff = (Date.now() - first) / (1000 * 60 * 60 * 24);
+        return Math.floor(daysDiff);
+    }
+
+    // Get consecutive days with messages (for streak achievement)
+    getActivityStreak(userId, guildId) {
+        const messages = this.db.prepare(`
+            SELECT DISTINCT DATE(timestamp / 1000, 'unixepoch') as date
+            FROM messages
+            WHERE user_id = ? AND guild_id = ?
+            ORDER BY date DESC
+        `).all(userId, guildId);
+
+        if (messages.length === 0) return 0;
+
+        let streak = 1;
+        for (let i = 0; i < messages.length - 1; i++) {
+            const current = new Date(messages[i].date);
+            const next = new Date(messages[i + 1].date);
+            const diffDays = (current - next) / (1000 * 60 * 60 * 24);
+
+            if (diffDays === 1) {
+                streak++;
+            } else {
+                break;
+            }
+        }
+
+        return streak;
+    }
+
     // Close database connection
     close() {
         this.db.close();

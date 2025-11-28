@@ -18,8 +18,15 @@ module.exports = {
                 .setDescription('Type of proof to generate')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Message Count', value: 'message_count' }
+                    { name: 'Message Count', value: 'message_count' },
+                    { name: 'Keyword Count', value: 'keyword_count' }
                 )
+        )
+        .addStringOption(option =>
+            option
+                .setName('keyword')
+                .setDescription('Keyword to count (required for keyword_count)')
+                .setRequired(false)
         ),
 
     async execute(interaction, db) {
@@ -76,6 +83,54 @@ module.exports = {
                 await interaction.editReply({ embeds: [proofEmbed] });
 
                 console.log(`✅ Generated proof #${proofId} for ${targetUser.tag} (requested by ${interaction.user.tag})`);
+            } else if (proofType === 'keyword_count') {
+                const keyword = interaction.options.getString('keyword');
+
+                if (!keyword) {
+                    const errorEmbed = EmbedTemplates.createErrorEmbed('Please provide a keyword to count!');
+                    return interaction.editReply({ embeds: [errorEmbed] });
+                }
+
+                // Count keyword occurrences
+                const keywordCount = db.countKeywordForUser(targetUser.id, keyword, interaction.guildId);
+                const messages = db.getMessagesByUser(targetUser.id);
+
+                if (keywordCount === 0) {
+                    const errorEmbed = EmbedTemplates.createErrorEmbed(
+                        `${targetUser.username} has not said "${keyword}". Cannot generate proof.`
+                    );
+                    return interaction.editReply({ embeds: [errorEmbed] });
+                }
+
+                // Generate proof
+                const proofData = ProofGenerator.generateKeywordCountProof({
+                    requesterId: interaction.user.id,
+                    requesterUsername: interaction.user.tag,
+                    targetUserId: targetUser.id,
+                    targetUsername: targetUser.tag,
+                    keyword: keyword,
+                    keywordCount: keywordCount,
+                    guildId: interaction.guildId,
+                    messages: messages.map(m => ({ id: m.id, content: m.content, timestamp: m.timestamp }))
+                });
+
+                // Save proof to database
+                const proofId = db.insertProof(proofData);
+
+                if (!proofId) {
+                    const errorEmbed = EmbedTemplates.createErrorEmbed('Failed to generate proof. Please try again.');
+                    return interaction.editReply({ embeds: [errorEmbed] });
+                }
+
+                // Retrieve the saved proof
+                const savedProof = db.getProofById(proofId);
+
+                // Create and send proof card
+                const proofEmbed = EmbedTemplates.createProofCard(savedProof);
+
+                await interaction.editReply({ embeds: [proofEmbed] });
+
+                console.log(`✅ Generated keyword proof #${proofId} for "${keyword}" by ${targetUser.tag}`);
             }
         } catch (error) {
             console.error('Error in prove command:', error);

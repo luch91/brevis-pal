@@ -36,6 +36,41 @@ class ProofGenerator {
     }
 
     /**
+     * Generate a proof for keyword count
+     * @param {Object} params - Proof parameters
+     * @returns {Object} - Proof data ready for database
+     */
+    static generateKeywordCountProof(params) {
+        const {
+            requesterId,
+            requesterUsername,
+            targetUserId,
+            targetUsername,
+            keyword,
+            keywordCount,
+            guildId,
+            messages = []
+        } = params;
+
+        const claim = `${targetUsername} said "${keyword}" ${keywordCount} time${keywordCount !== 1 ? 's' : ''}`;
+        const result = `✓ VERIFIED - ${keywordCount} occurrence${keywordCount !== 1 ? 's' : ''}`;
+        const dataHash = this.generateDataHash(messages);
+
+        return {
+            requesterId,
+            requesterUsername,
+            targetUserId,
+            targetUsername,
+            proofType: 'keyword_count',
+            claim,
+            result,
+            dataHash,
+            guildId,
+            timestamp: Date.now()
+        };
+    }
+
+    /**
      * Generate data commitment hash
      * @param {Array} data - Data to hash
      * @returns {string} - SHA-256 hash
